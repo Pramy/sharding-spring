@@ -25,6 +25,7 @@ import io.shardingsphere.shardingjdbc.spring.boot.sharding.SpringBootShardingRul
 import io.shardingsphere.shardingjdbc.spring.boot.util.PropertyUtil;
 import lombok.RequiredArgsConstructor;
 import org.apache.shardingsphere.core.exception.ShardingException;
+import org.apache.shardingsphere.core.util.InlineExpressionParser;
 import org.apache.shardingsphere.shardingjdbc.api.MasterSlaveDataSourceFactory;
 import org.apache.shardingsphere.shardingjdbc.api.ShardingDataSourceFactory;
 import org.apache.shardingsphere.shardingjdbc.util.DataSourceUtil;
@@ -37,6 +38,8 @@ import org.springframework.core.env.Environment;
 import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -81,12 +84,12 @@ public class SpringBootConfiguration implements EnvironmentAware {
     public final void setEnvironment(final Environment environment) {
         setDataSourceMap(environment);
     }
-    
+
     @SuppressWarnings("unchecked")
     private void setDataSourceMap(final Environment environment) {
         String prefix = "sharding.jdbc.datasource.";
         String dataSources = environment.getProperty(prefix + "names");
-        for (String each : dataSources.split(",")) {
+        for (String each : getDataSourceNames(dataSources)) {
             try {
                 Map<String, Object> dataSourceProps = PropertyUtil.handle(environment, prefix + each.trim(), Map.class);
                 Preconditions.checkState(!dataSourceProps.isEmpty(), "Wrong datasource properties!");
@@ -97,5 +100,13 @@ public class SpringBootConfiguration implements EnvironmentAware {
                 throw new ShardingException("Can't find datasource type!", ex);
             }
         }
+    }
+
+    private List<String> getDataSourceNames(String dataSources) {
+        List<String> names = new LinkedList<>();
+        for (String each : dataSources.split(",")) {
+            names.addAll(new InlineExpressionParser(each).splitAndEvaluate());
+        }
+        return names;
     }
 }
